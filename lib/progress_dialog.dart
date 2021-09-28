@@ -35,10 +35,10 @@ Widget _progressWidget = Image.asset(
   package: 'progress_dialog',
 );
 
-class ProgressDialogBuilder {
+class ProgressDialog {
   _Body _dialog;
 
-  ProgressDialogBuilder(BuildContext context,
+  ProgressDialog(BuildContext context,
       {ProgressDialogType type,
       bool isDismissible,
       bool showLogs,
