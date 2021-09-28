@@ -6,7 +6,8 @@ enum ProgressDialogType { Normal, Download }
 
 String _dialogMessage = "Loading...";
 double _progress = 0.0, _maxProgress = 100.0;
-
+bool _showCancelIcon = false;
+Function _cancelButtonEvent;
 Widget _customBody;
 
 TextAlign _textAlign = TextAlign.left;
@@ -34,15 +35,15 @@ Widget _progressWidget = Image.asset(
   package: 'progress_dialog',
 );
 
-class ProgressDialog {
+class ProgressDialogBuilder {
   _Body _dialog;
 
-  ProgressDialog(BuildContext context,
+  ProgressDialogBuilder(BuildContext context,
       {ProgressDialogType type,
-        bool isDismissible,
-        bool showLogs,
-        TextDirection textDirection,
-        Widget customBody}) {
+      bool isDismissible,
+      bool showLogs,
+      TextDirection textDirection,
+      Widget customBody}) {
     _context = context;
     _progressDialogType = type ?? ProgressDialogType.Normal;
     _barrierDismissible = isDismissible ?? true;
@@ -65,12 +66,16 @@ class ProgressDialog {
       double borderRadius,
       Curve insetAnimCurve,
       EdgeInsets padding,
-      Alignment progressWidgetAlignment}) {
+      Alignment progressWidgetAlignment,
+      bool showCancelIcon,
+      Function cancelButtonEvent}) {
     if (_isShowing) return;
     if (_progressDialogType == ProgressDialogType.Download) {
       _progress = progress ?? _progress;
     }
 
+    _cancelButtonEvent = cancelButtonEvent;
+    _showCancelIcon = showCancelIcon ?? _showCancelIcon;
     _dialogMessage = message ?? _dialogMessage;
     _maxProgress = maxProgress ?? _maxProgress;
     _progressWidget = progressWidget ?? _progressWidget;
@@ -211,58 +216,88 @@ class _BodyState extends State<_Body> {
     final text = Expanded(
       child: _progressDialogType == ProgressDialogType.Normal
           ? Text(
-        _dialogMessage,
-        textAlign: _textAlign,
-        style: _messageStyle,
-        textDirection: _direction,
-      )
+              _dialogMessage,
+              textAlign: _textAlign,
+              style: _messageStyle,
+              textDirection: _direction,
+            )
           : Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SizedBox(height: 8.0),
-            Row(
-              children: <Widget>[
-                Expanded(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(height: 8.0),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                          child: Text(
+                        _dialogMessage,
+                        style: _messageStyle,
+                        textDirection: _direction,
+                      )),
+                    ],
+                  ),
+                  SizedBox(height: 4.0),
+                  Align(
+                    alignment: Alignment.bottomRight,
                     child: Text(
-                      _dialogMessage,
-                      style: _messageStyle,
+                      "$_progress/$_maxProgress",
+                      style: _progressTextStyle,
                       textDirection: _direction,
-                    )),
-              ],
-            ),
-            SizedBox(height: 4.0),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Text(
-                "$_progress/$_maxProgress",
-                style: _progressTextStyle,
-                textDirection: _direction,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
 
     return _customBody ??
         Container(
-          padding: _dialogPadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          margin: EdgeInsets.only(left: 0.0, right: 0.0),
+          child: Stack(
             children: <Widget>[
-              // row body
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const SizedBox(width: 8.0),
-                  _direction == TextDirection.ltr ? loader : text,
-                  const SizedBox(width: 8.0),
-                  _direction == TextDirection.rtl ? loader : text,
-                  const SizedBox(width: 8.0)
-                ],
+              Container(
+                padding: _dialogPadding,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // row body
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const SizedBox(width: 8.0),
+                        _direction == TextDirection.ltr ? loader : text,
+                        const SizedBox(width: 8.0),
+                        _direction == TextDirection.rtl ? loader : text,
+                        const SizedBox(width: 8.0)
+                      ],
+                    ),
+                  ],
+                ),
               ),
+              _showCancelIcon
+                  ? Positioned(
+                      right: 0.0,
+                      child: GestureDetector(
+                        onTap: _cancelButtonEvent ??
+                            () async {
+                              _isShowing = false;
+                              Navigator.of(_dismissingContext).pop();
+                              if (_showLogs)
+                                debugPrint('ProgressDialog dismissed');
+                              return Future.value(true);
+                            },
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: CircleAvatar(
+                            radius: 14.0,
+                            backgroundColor: Colors.white,
+                            child: Icon(Icons.close, color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    )
+                  : SizedBox.shrink(),
             ],
           ),
         );
